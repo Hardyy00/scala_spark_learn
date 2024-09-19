@@ -1,7 +1,7 @@
 package org.example
 
 import org.apache.log4j.{Level, Logger}
-import org.apache.spark.sql.functions.{array_contains, avg, col, count, lit, struct, sum}
+import org.apache.spark.sql.functions.{array_contains, avg, col, count, lit, struct, sum, udf}
 import org.apache.spark.sql.types.{ArrayType, IntegerType, StringType, StructField, StructType}
 import org.apache.spark.sql.{Row, SparkSession}
 
@@ -446,16 +446,55 @@ object ScalaSQL extends App{
   column into multiple columns (transform row to column) and unpivot is used to transform
   it back (transform columns to rows).*/
 
-  val data = Seq(("Banana",1000,"USA"), ("Carrots",1500,"USA"), ("Beans",1600,"USA"),
-    ("Orange",2000,"USA"),("Orange",2000,"USA"),("Banana",400,"China"),
-    ("Carrots",1200,"China"),("Beans",1500,"China"),("Orange",4000,"China"),
-    ("Banana",2000,"Canada"),("Carrots",2000,"Canada"),("Beans",2000,"Mexico"))
+//  val data = Seq(("Banana",1000,"USA"), ("Carrots",1500,"USA"), ("Beans",1600,"USA"),
+//    ("Orange",2000,"USA"),("Orange",2000,"USA"),("Banana",400,"China"),
+//    ("Carrots",1200,"China"),("Beans",1500,"China"),("Orange",4000,"China"),
+//    ("Banana",2000,"Canada"),("Carrots",2000,"Canada"),("Beans",2000,"Mexico"))
+//
+//
+//
+//  val df = data.toDF("Product", "Amount", "Country")
+//
+//  df.show()
+//
+//
+//  val pivotDF = df.groupBy("Product").pivot("country").sum("amount")
+//  pivotDF.show()
 
 
+  ////////////////////////////                      UDF() : user defined functions                  //////////////////////
 
-  val df = data.toDF("Product", "Amount", "Country")
+  val cols = Seq("Seqno", "Quote")
+  val data = Seq(("1", "Be the change that you wish to see in the world"), ("2", "Everyone thinks of changing the world, but no one thinks of changing himself" ), ("3", "The purpose of our lives is to be happy."))
 
-  df.show()
+  val df = data.toDF(cols : _*)
+
+  df.show(false)
+
+
+  // convert first letter of every words in a sentence to capital
+  val convertCase = (str : String)=>{
+
+    val arr = str.split(" ")
+    arr.map(f => f.substring(0,1).toUpperCase + f.substring(1)).mkString(" ")
+  }
+
+  val convertUDF = udf(convertCase)  // convert function to udf
+
+  // using it on a dataframe
+
+  df.select(col("Seqno"), convertUDF(col("Quote")).as("Quote") ).show(false)
+
+
+  // registering spark UDF to use it on SQL
+
+  spark.udf.register("convertUDF", convertUDF)
+
+  df.createOrReplaceTempView("Quotes")
+
+   spark.sql("select Seqno, convertUDF(quote) as Quote from Quotes").show(false)
+
+
 
 
 
